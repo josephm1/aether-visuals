@@ -7,16 +7,20 @@ they do not make another model request each time you touch them.
 
 ## See it in use
 
-The examples below show concrete rendering and interaction checks. Each capture is labelled with its actual environment.
+These are actual Android device captures of model-generated figures inside an
+Aether conversation. Physical interaction is performed by the device tester.
 
-<p><img src="docs/screenshots/interactive-triangle.png" width="280" alt="Generated interactive triangle with live base, height and area"><img src="docs/screenshots/anatomy-engine.png" width="280" alt="Intricate isometric rocket-engine reference rendered by the shared viewer"></p>
+<p><img src="docs/screenshots/interactive-triangle-android.png" width="280" alt="Interactive UI extension showing a triangle and live area measurements inline in Aether on Android"><img src="docs/screenshots/anatomy-dial-android.png" width="280" alt="Anatomy extension showing a contained isometric dial indicator inline in Aether on Android"></p>
 
-Left: an actual model-generated triangle captured in desktop Chromium at a phone
-viewport. Tests drag a vertex, check the calculated area, use the keyboard and reset.
-Right: the upstream Anatomy engine reference in the same browser viewer, testing
-part selection and reset. These are renderer tests, **not screenshots proving the
-new native inline flow**. Physical Android interaction and iOS verification remain
-with the device tester. See [test prompts and pass criteria](docs/TESTING.md).
+**Interactive UI:** a draggable triangle explains why area is half base times height,
+with base 10, height 6 and area 30. The screenshot includes the surrounding answer,
+measurements and Reset. **Anatomy:** a generated spring-loaded dial indicator stays
+within its drawing frame; its sliders continue below the visible viewport.
+Screenshots establish native display, not complete interaction or scientific
+validation. iOS device verification remains pending.
+
+Desktop browser tests separately cover triangle drag/math/reset and an intricate
+upstream engine reference. See [test prompts and pass criteria](docs/TESTING.md).
 
 ## Two independent extensions
 
