@@ -62,3 +62,21 @@ provider or fake touchscreen interaction is used for that regression.
 Passing these tests does not prove every future generated diagram is correct.
 The final physical-device flow remains a manual test. Android build/unit checks
 have run; iOS device compilation/interaction requires a Mac and remains pending.
+
+## Drawer gesture regression (native host)
+
+With the host gesture fix from Aether PR #121 installed:
+
+- Drag the triangle vertex sideways and move Anatomy sliders repeatedly. The
+  conversation drawer must stay closed for gestures starting inside the panel.
+- Release, then swipe in ordinary chat outside the web panel: the drawer opens
+  normally. Its menu button and closing gesture still work.
+- Start and cancel a panel gesture, then swipe outside: drawer gestures must recover.
+- Scroll vertically through the conversation over non-dragging panel space and
+  outside it. Verify the actual WebView/iframe interaction, not just the Compose
+  test panel. On iOS, also check quick drags versus press-then-drag because UIKit
+  interop has its own cooperative gesture policy.
+
+Three desktop Compose tests cover the host guard, but do not replace these physical
+checks. The gesture fix is native host code; the extension tools do not send touch
+state or additional requests to the model.
