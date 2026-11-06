@@ -1,0 +1,14 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Force lab</title><style>
+*{box-sizing:border-box}body{margin:0;padding:18px;font:16px system-ui}h1{font-size:24px;margin:0 0 8px}p{line-height:1.6}label{display:block;margin-top:16px}input{width:100%}.controls{display:flex;gap:12px;flex-wrap:wrap;margin:16px 0}button{min-height:44px;padding:10px 16px;border:1px solid #78958b;border-radius:9px;cursor:pointer}svg{width:100%;height:auto;display:block}output{font-variant-numeric:tabular-nums}#result{font-size:26px;font-weight:bold}.note{font-size:13px}text{fill:currentColor}
+</style></head><body><h1>Force lab</h1><p>Change the mass and acceleration. The force arrow and calculation share the same model.</p>
+<svg viewBox="0 0 360 155" role="img" aria-label="Block with adjustable force arrow"><defs><marker id="tip" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0 0L6 3L0 6Z" fill="#245d47"/></marker></defs><path d="M15 125H345" stroke="#78958b"/><rect x="30" y="50" width="105" height="75" rx="9" fill="#cbded3" stroke="#245d47"/><text id="mass-label" x="82" y="94" text-anchor="middle">2 kg</text><path id="force-arrow" d="M140 85H180" stroke="#245d47" stroke-width="5" marker-end="url(#tip)"/><text x="180" y="32">F = m × a</text></svg>
+<label for="mass">Mass: <output id="mass-value">2</output> kg</label><input id="mass" type="range" min="1" max="10" step="1" value="2">
+<label for="acceleration">Acceleration: <output id="acceleration-value">3</output> m/s²</label><input id="acceleration" type="range" min="0" max="10" step="1" value="3">
+<p id="result" role="status">6 N</p><div class="controls"><button id="reset">Reset</button><button id="followup">Explain these values</button></div><p class="note">Illustrative Newtonian model; constant mass and net force along one axis. Controls run locally.</p>
+<script>
+const mass=document.getElementById('mass'),acceleration=document.getElementById('acceleration');
+function draw(){const m=Number(mass.value),a=Number(acceleration.value),force=m*a;document.getElementById('mass-value').textContent=m;document.getElementById('acceleration-value').textContent=a;document.getElementById('mass-label').textContent=m+' kg';document.getElementById('result').textContent=force+' N';document.getElementById('force-arrow').setAttribute('d','M140 85H'+(150+force*1.6));}
+for(const input of [mass,acceleration])input.addEventListener('input',draw);
+document.getElementById('reset').onclick=()=>{mass.value='2';acceleration.value='3';draw();};
+document.getElementById('followup').onclick=()=>sendPrompt('Explain the force for these selected values.',{mass:Number(mass.value),acceleration:Number(acceleration.value)});draw();
+</script></body></html>

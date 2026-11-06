@@ -1,0 +1,33 @@
+{
+  "name": "aether-visuals",
+  "version": "0.1.0",
+  "description": "On-demand interactive explanations, SVG/canvas tools and Anatomy figures for Aether",
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
+  "pi": {
+    "extensions": [
+      "./agent.mjs"
+    ]
+  },
+  "aether": {
+    "api": {
+      "min": 2,
+      "max": 2
+    },
+    "extensions": [
+      "./aether.mjs"
+    ]
+  },
+  "scripts": {
+    "test": "node --test tests/core.test.mjs",
+    "test:browser": "node --test tests/browser.test.mjs",
+    "package": "python3 package.py",
+    "test:host": "node --test tests/host.test.mjs"
+  },
+  "devDependencies": {
+    "puppeteer-core": "25.8.0"
+  }
+}
