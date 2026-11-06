@@ -50,7 +50,7 @@ Pass criteria:
 bounds, lazy Anatomy injection, model-facing results and reviewed drafts.
 `npm run test:browser` checks a real generated triangle’s drag/math/keyboard/reset,
 the actual Anatomy SVG module’s geometry/selection/separation/reset, an intricate
-reference engine, a gauge, phone widths, content height and iframe isolation.
+reference engine, a gauge, phone widths, content height and iframe isolation. A regression uses the actual generated dial indicator that escaped its drawing frame, checking geometry containment and separation from controls at 320px and 600px in assembled and exploded states.
 `npm run test:host` loads **both packaged ZIPs together** through Aether’s real
 extension bridge and renders their distinct saved messages.
 

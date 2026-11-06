@@ -339,3 +339,33 @@ test("Anatomy browser kit draws new geometry, separates a cover, selects parts a
     fullPage: true,
   });
 });
+
+test("generated Anatomy figure contains its geometry above controls at phone widths", async t => {
+  const {withAnatomyToolkit} = await import('../lib/anatomy.mjs');
+  const html = await withAnatomyToolkit(await fs.readFile(new URL('./fixtures/generated-dial.html', import.meta.url), 'utf8'));
+  const {page, frame} = await setup(t, html, 320);
+  const check = async () => {
+    await frame.waitForFunction(() => {
+      const svg=document.querySelector('svg.iso-svg');if(!svg)return false;
+      const b=svg.getBBox(),v=svg.viewBox.baseVal;
+      return b.x>=v.x && b.y>=v.y && b.x+b.width<=v.x+v.width && b.y+b.height<=v.y+v.height;
+    });
+    assert.equal(await frame.evaluate(() => {
+      const svg=document.querySelector('svg.iso-svg'),controls=document.querySelector('.controls');
+      return getComputedStyle(svg).overflow==='hidden' && svg.getBoundingClientRect().bottom<=controls.getBoundingClientRect().top;
+    }),true);
+    assert.equal(await frame.evaluate(() => document.documentElement.scrollWidth<=innerWidth),true);
+  };
+  for(const width of [320,600]) {
+    await page.setViewport({width,height:960,isMobile:true,hasTouch:true,deviceScaleFactor:1});
+    for(const value of ['0','1']) {
+      await frame.$eval('#explode',(input,value)=>{input.value=value;input.dispatchEvent(new Event('input'));},value);
+      await frame.$eval('#lift',(input,value)=>{input.value=value;input.dispatchEvent(new Event('input'));},value);
+      await check();
+      assert.equal(await frame.$eval('#reading',e=>e.textContent),Number(value).toFixed(2)+' mm');
+    }
+  }
+  await frame.click('#reset');await check();
+  assert.equal(await frame.$eval('#reading',e=>e.textContent),'0.00 mm');
+  await page.screenshot({path:'verification/generated-dial-contained.png',fullPage:true});
+});

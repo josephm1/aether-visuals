@@ -25,6 +25,13 @@ Key functions (`k = window.anatomy`):
 For example, compute a projection from a part's boxCorners, then set an SVG
 container's innerHTML to `k.solidSvg(k.slabOf(plan,0,20,P),{tone:'hi'})`.
 Use the same geometric model for projected parts, labels and measurements.
+Fit ALL corners of ALL parts, including the maximum exploded/lift positions; two
+opposite corners do not bound an isometric projection. For a rectangular volume:
+`const corners=[xmin,xmax].flatMap(x=>[ymin,ymax].flatMap(y=>[zmin,zmax].map(z=>[x,y,z])));`
+Reserve space for labels outside the mechanism. Keep the camera fixed across
+control states. The viewer expands toolkit figure bounds to contain visible
+geometry, but that does not replace a correctly fitted scene or prevent labels
+from colliding with each other. Keep controls below the SVG in normal flow.
 
 For an exploded view, store each part's world-space position, height and separation
 vector, then recompute its paths from one local slider value. Provide named part

@@ -96,7 +96,7 @@ These are byte/character bounds, not measured model token counts.
 ## Rendering and isolation
 
 The viewer supports self-contained HTML, CSS, JavaScript, SVG, Canvas and WebGL.
-The optional MIT Anatomy SVG geometry module supports intricate isometric figures. Generation
+The optional MIT Anatomy SVG geometry module supports intricate isometric figures. Toolkit SVG bounds expand to contain their visible geometry, with paint clipped to the drawing frame so parts cannot spill over controls. Generation
 must provide touch controls, readable labels, keyboard access, reset/pause controls
 where appropriate, and reduced-motion support.
 
