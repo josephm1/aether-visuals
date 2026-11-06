@@ -1,25 +1,11 @@
 {
   "name": "aether-visuals",
-  "version": "0.1.0",
-  "description": "On-demand interactive explanations, SVG/canvas tools and Anatomy figures for Aether",
+  "version": "0.2.0",
+  "description": "Two independent Aether extensions: Interactive UI and Anatomy",
   "type": "module",
   "license": "MIT",
   "engines": {
     "node": ">=22"
-  },
-  "pi": {
-    "extensions": [
-      "./agent.mjs"
-    ]
-  },
-  "aether": {
-    "api": {
-      "min": 2,
-      "max": 2
-    },
-    "extensions": [
-      "./aether.mjs"
-    ]
   },
   "scripts": {
     "test": "node --test tests/core.test.mjs",

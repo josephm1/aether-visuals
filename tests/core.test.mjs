@@ -5,7 +5,6 @@ import path from "node:path";
 import os from "node:os";
 import {
   artifactRoot,
-  readSource,
   saveArtifact,
   readArtifact,
   listArtifacts,
@@ -15,9 +14,16 @@ import {
   prepareDocument,
   viewerDocument,
 } from "../lib/documents.mjs";
-import { example } from "../lib/examples.mjs";
-import activatePi, { executeVisual, toolDefinition } from "../agent.mjs";
-import { activateAether } from "../aether.mjs";
+import { example } from "./examples.mjs";
+import {
+  activateAgent as activatePi,
+  executeVisual,
+  toolDefinition,
+  createToolDefinition,
+  compactVisualContext,
+} from "../lib/agent.mjs";
+import { INTERACTIVE_UI, ANATOMY } from "../lib/config.mjs";
+import { activateAether } from "../lib/viewer.mjs";
 async function temporary(t) {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "aether-visuals-test-"));
   t.after(() => fs.rm(root, { recursive: true, force: true }));
@@ -30,27 +36,28 @@ test("snapshots are immutable and changed bytes never render", async (t) => {
   assert.equal((await listArtifacts(root)).length, 1);
   await fs.writeFile(path.join(root, a.id + ".html"), "<p>two</p>");
   await assert.rejects(readArtifact(a.id, root), /changed/);
-  assert.deepEqual(await listArtifacts(root), []);
+  assert.equal(
+    (await listArtifacts(root)).length,
+    1,
+    "listing is metadata-only; integrity is checked before rendering",
+  );
   await assert.rejects(readArtifact("../private", root), /ID/);
 });
-test("source imports are bounded and cannot follow a link outside the workspace", async (t) => {
+test("HTML documents are bounded before being saved", async (t) => {
   const root = await temporary(t);
-  await fs.mkdir(path.join(root, "workspace"));
-  await fs.writeFile(path.join(root, "outside.html"), "private");
-  await fs.symlink(
-    path.join(root, "outside.html"),
-    path.join(root, "workspace", "link.html"),
+  await assert.rejects(
+    saveArtifact(
+      { html: "x".repeat(2 * 1024 * 1024 + 1), title: "Large" },
+      root,
+    ),
+    /limit/,
   );
   await assert.rejects(
-    readSource("link.html", path.join(root, "workspace")),
-    /workspace/,
+    executeVisual({ title: "Missing" }, { cwd: root }, root),
+    /content/,
   );
-  await fs.writeFile(
-    path.join(root, "large.html"),
-    "x".repeat(2 * 1024 * 1024 + 1),
-  );
-  await assert.rejects(readSource("large.html", root), /limit/);
 });
+
 test("tool show returns small metadata and no HTML or provider access", async (t) => {
   const root = await temporary(t);
   await fs.writeFile(
@@ -58,7 +65,7 @@ test("tool show returns small metadata and no HTML or provider access", async (t
     "<h1>Unique body secret</h1>",
   );
   const a = await executeVisual(
-    { action: "show", file: "figure.html", title: "Test" },
+    { action: "render", content: "<h1>Unique body secret</h1>", title: "Test" },
     { cwd: root },
     path.join(root, "store"),
   );
@@ -72,11 +79,15 @@ test("guides are opt-in; activating does not add chat context or call a provider
   activatePi({
     registerTool: (t) => tools.push(t),
     registerCommand() {},
+    on() {},
     on: (...args) => hooks.push(args),
   });
   assert.equal(tools.length, 1);
-  assert.equal(hooks.length, 0);
-  assert.equal(tools[0].name, "visual_artifact");
+  assert.deepEqual(
+    hooks.map((h) => h[0]),
+    ["context"],
+  );
+  assert.equal(tools[0].name, "render_ui");
   assert(JSON.stringify(toolDefinition).length < 1200);
 });
 test("examples include real local model and accessible Anatomy controls", async () => {
@@ -121,12 +132,17 @@ test("generated document is separate from native actions and receives no origin 
   assert(page.includes("event.source!==frame.contentWindow"));
   assert(page.includes("!event.isTrusted"));
 });
-test("Aether activation is lazy and native followup only creates a draft", async (t) => {
+test("inline rendering resizes locally and only drafts followups", async (t) => {
   const root = await temporary(t),
     actions = new Map(),
-    calls = [];
-  const a = await saveArtifact({ html: "<p>test</p>", title: "Test" }, root);
-  let surface;
+    events = new Map(),
+    calls = [],
+    appended = [];
+  const a = await saveArtifact(
+    { html: "<p>test</p>", title: "Test", sessionId: "chat-a" },
+    root,
+  );
+  let surface, renderer;
   const ui = new Proxy(
     {},
     {
@@ -140,20 +156,178 @@ test("Aether activation is lazy and native followup only creates a draft", async
     registerAction: (n, f) => actions.set(n, f),
     registerComposerMenuItem() {},
     registerSurface: (_, s) => (surface = s),
+    registerMessageType: (d) => (renderer = d.render),
+    on: (n, f) => events.set(n, f),
+    messages: { append: async (...args) => appended.push(args) },
     host: { invoke: async (...args) => calls.push(args) },
     invalidate() {},
   };
   const { actions: n } = await activateAether(api, { root });
   assert.equal(surface.render(), null);
   assert.deepEqual(calls, []);
-  await actions.get(n.open)({});
-  await actions.get(n.show)({ id: a.id });
+  assert.equal(events.size, 0);
+  let tree = await renderer({ message: { payload: { id: a.id } } });
+  assert.equal(tree.args[0][1].args[0].height, 560);
+  actions.get(n.resize)({ id: a.id, height: 1700 });
+  tree = await renderer({ message: { payload: { id: a.id } } });
+  assert.equal(tree.args[0][1].args[0].height, 1700);
   await actions.get(n.draft)({ id: a.id, text: "Explain", values: { x: 2 } });
   assert.deepEqual(
     calls.map((x) => x[0]),
-    ["app.openScreen", "app.appendDraftInput"],
+    ["app.appendDraftInput"],
   );
-  assert(calls[1][1].text.includes('"x":2'));
-  assert(!calls[1][1].text.includes("<p>test"));
+  assert(!calls[0][1].text.includes("<p>test"));
+  await actions.get(n.open)({});
+  await actions.get(n.show)({ id: a.id });
+  assert.equal(appended.length, 1);
   assert.equal(surface.render(), null);
+});
+
+test("Pi renderer emits a standard persisted custom message and compact details", async (t) => {
+  const root = await temporary(t);
+  const old = process.env.AETHER_EXTENSIONS_DATA;
+  process.env.AETHER_EXTENSIONS_DATA = root;
+  t.after(() => {
+    if (old === undefined) delete process.env.AETHER_EXTENSIONS_DATA;
+    else process.env.AETHER_EXTENSIONS_DATA = old;
+  });
+  let tool;
+  const sent = [];
+  activatePi({
+    registerTool: (d) => (tool = d),
+    registerCommand() {},
+    on() {},
+    sendMessage: (...args) => sent.push(args),
+  });
+  const result = await tool.execute(
+    "call",
+    { title: "Custom diagram", content: "<h1>Unique source body</h1>" },
+    null,
+    null,
+    { cwd: root },
+  );
+  assert.equal(result.details.title, "Custom diagram");
+  assert.equal(sent.length, 1);
+  assert.deepEqual(sent[0], [
+    {
+      customType: "aether-interactive-ui",
+      content: "Custom diagram",
+      display: true,
+      details: { id: result.details.id },
+    },
+    { triggerTurn: false },
+  ]);
+  const source = await tool.execute("read", { action: "read", id: result.details.id }, null, null, {});
+  assert.equal(source.details.content, "<h1>Unique source body</h1>");
+  assert.equal(sent.length, 1, "reading source must not append another display message");
+  assert(!JSON.stringify(result).includes("Unique source body"));
+  assert(!JSON.stringify(tool.parameters).includes("example"));
+});
+
+test("Anatomy assets load only for that artifact and stay outside model results", async (t) => {
+  const root = await temporary(t);
+  const result = await executeVisual(
+    {
+      title: "New mechanism",
+      content: '<div class="iso" data-theme="light"><svg></svg></div>',
+    },
+    { cwd: root },
+    root,
+    ANATOMY,
+  );
+  const saved = await readArtifact(result.id, root);
+  assert(!saved.html.includes("window.anatomy=Object.freeze"));
+  assert(!JSON.stringify(result).includes("solidSvg"));
+  assert(!toolDefinition.parameters.properties.file);
+});
+
+test("independent extensions register distinct tools, message types and storage", async (t) => {
+  const root = await temporary(t),
+    old = process.env.AETHER_EXTENSIONS_DATA;
+  process.env.AETHER_EXTENSIONS_DATA = root;
+  t.after(() => {
+    if (old === undefined) delete process.env.AETHER_EXTENSIONS_DATA;
+    else process.env.AETHER_EXTENSIONS_DATA = old;
+  });
+  const tools = [],
+    sent = [];
+  const pi = {
+    registerTool: (d) => tools.push(d),
+    registerCommand() {},
+    on() {},
+    sendMessage: (...args) => sent.push(args),
+  };
+  activatePi(pi, INTERACTIVE_UI);
+  activatePi(pi, ANATOMY);
+  assert.deepEqual(
+    tools.map((t) => t.name),
+    ["render_ui", "render_anatomy"],
+  );
+  for (const tool of tools)
+    await tool.execute(
+      "call",
+      { title: tool.label, content: "<p>new</p>" },
+      null,
+      null,
+      {},
+    );
+  assert.deepEqual(
+    sent.map((s) => s[0].customType),
+    ["aether-interactive-ui", "aether-anatomy"],
+  );
+  assert.notEqual(
+    artifactRoot(INTERACTIVE_UI.namespace),
+    artifactRoot(ANATOMY.namespace),
+  );
+  assert.equal(
+    (await listArtifacts(artifactRoot(ANATOMY.namespace))).length,
+    1,
+  );
+  assert(!createToolDefinition(INTERACTIVE_UI).parameters.properties.kind);
+});
+
+test("provider context omits visual source without mutating the persisted branch", async (t) => {
+  const messages = [
+    {
+      role: "assistant",
+      content: [
+        {
+          type: "toolCall",
+          id: "call",
+          name: "render_ui",
+          arguments: { title: "Figure", content: "UNIQUE_HTML_SOURCE" },
+        },
+      ],
+    },
+    {
+      role: "assistant",
+      content: [
+        {
+          type: "toolCall",
+          id: "other",
+          name: "other_tool",
+          arguments: { content: "keep" },
+        },
+      ],
+    },
+  ];
+  const result = compactVisualContext(messages, "render_ui");
+  assert(!JSON.stringify(result).includes("UNIQUE_HTML_SOURCE"));
+  assert.equal(messages[0].content[0].arguments.content, "UNIQUE_HTML_SOURCE");
+  assert.equal(result[1].content[0].arguments.content, "keep");
+  const root = await temporary(t);
+  const saved = await saveArtifact(
+    { title: "Source", html: "a".repeat(7000) },
+    root,
+  );
+  const first = await executeVisual({ action: "read", id: saved.id }, {}, root);
+  assert.equal(first.content.length, 6000);
+  assert.equal(first.nextOffset, 6000);
+  const last = await executeVisual(
+    { action: "read", id: saved.id, offset: first.nextOffset },
+    {},
+    root,
+  );
+  assert.equal(last.content.length, 1000);
+  assert.equal(last.nextOffset, null);
 });

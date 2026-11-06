@@ -1,0 +1,23 @@
+{
+  "name": "aether-anatomy",
+  "version": "0.2.0",
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
+  "pi": {
+    "extensions": [
+      "./extensions/anatomy/agent.mjs"
+    ]
+  },
+  "aether": {
+    "api": {
+      "min": 2,
+      "max": 2
+    },
+    "extensions": [
+      "./extensions/anatomy/aether.mjs"
+    ]
+  }
+}

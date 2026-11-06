@@ -4,10 +4,8 @@ Use a visual only when interaction clarifies the answer: inspect a mechanism,
 change assumptions, compare alternatives, solve a puzzle or use a small tool.
 Ordinary facts still deserve ordinary text. This guide is loaded on demand.
 
-Write ONE self-contained HTML file in the current workspace. Call visual_artifact
-with action show, title, kind interactive, and its file path. The tool snapshots the
-file, returns a small ID, and makes it available under Visuals in Aether's composer
-menu. It does not return the document to the model. Use action example to test.
+Create ONE self-contained HTML document. Call render_ui with a title and the complete HTML in content. The tool snapshots the document, returns a small ID, and attaches it inline to this conversation using Pi's
+persisted custom-message API. It does not return the document to the model.
 
 The runtime supports HTML, inline CSS, inline JavaScript, SVG, Canvas and WebGL.
 No React build, CDN, external requests, eval, modules imported from the network,
@@ -32,7 +30,7 @@ Only 16 scalar named values, total 1 KiB, and 1,200 characters of text are accep
 The trusted viewer shows the proposed text/values; the user must approve a chat
 draft, then send it. This is not a way to run tools directly. A follow-up needs
 only the visual ID, question and selected values. If source is required, read only
-the relevant local HTML file; don't resend the whole source or old visual history.
+action read with the relevant artifact ID (6,000 characters per page); don't resend the whole source or old visual history.
 
 Deliver a concise explanation alongside the visual, including known limits. Test
 the actual controls, computations, resize, keyboard and touch behavior before

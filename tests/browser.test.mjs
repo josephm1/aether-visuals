@@ -3,11 +3,11 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import puppeteer from "puppeteer-core";
 import { viewerDocument } from "../lib/documents.mjs";
-import { example } from "../lib/examples.mjs";
+import { example } from "./examples.mjs";
 const executablePath = process.env.CHROME_PATH;
 if (!executablePath)
   throw Error("Set CHROME_PATH to your local Chromium executable.");
-async function setup(t, html, width = 390, touch = true) {
+async function setup(t, html, width = 390, touch = true, resizeAction = null) {
   const browser = await puppeteer.launch({
     executablePath,
     headless: true,
@@ -31,6 +31,7 @@ async function setup(t, html, width = 390, touch = true) {
     viewerDocument(
       { id: "00000000-0000-0000-0000-000000000000", html },
       "unguessable-test-action",
+      resizeAction,
     ),
     { waitUntil: "load" },
   );
@@ -197,6 +198,145 @@ test("intricate engine renders offline on a phone and responds to part selection
   await page.evaluate(() => scrollTo(0, 0));
   await page.screenshot({
     path: "verification/engine-phone.png",
+    fullPage: true,
+  });
+});
+
+test("inline viewer reports full content height without sending its document to the host", async (t) => {
+  const { page, frame } = await setup(
+    t,
+    "<h1>Long explanation</h1>",
+    390,
+    true,
+    "random-resize-action",
+  );
+  await frame.evaluate(() => {
+    const p = document.createElement("div");
+    p.style.height = "1800px";
+    document.body.append(p);
+  });
+  await page.waitForFunction(() =>
+    nativeCalls.some(
+      (c) => c.action === "random-resize-action" && c.args.height >= 1800,
+    ),
+  );
+  const calls = await page.evaluate(() => nativeCalls);
+  assert(
+    calls.every((c) => Object.keys(c.args).sort().join(",") === "height,id"),
+  );
+  assert.equal(await page.$eval("iframe", (e) => e.clientHeight >= 1800), true);
+});
+
+test("generated interactive triangle supports dragging, live mathematics and reset", async (t) => {
+  const html = await fs.readFile(
+    new URL("./fixtures/generated-triangle.html", import.meta.url),
+    "utf8",
+  );
+  const { page, frame, network } = await setup(t, html, 390);
+  await frame.waitForSelector("#values");
+  assert(
+    (await frame.$eval("#values", (e) => e.textContent)).includes(
+      "29.86 square units",
+    ),
+  );
+  const before = await frame.$eval("#tri", (e) => e.getAttribute("points"));
+  const vertex = await frame.$("#handles circle:last-child"),
+    box = await vertex.boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(
+    box.x + box.width / 2 + 20,
+    box.y + box.height / 2 + 35,
+    { steps: 6 },
+  );
+  await page.mouse.up();
+  const actual = await frame.$eval("#tri", (e) => e.getAttribute("points"));
+  assert.notEqual(actual, before);
+  const points = actual.split(" ").map((p) => p.split(",").map(Number));
+  const [[ax, ay], [bx, by], [cx, cy]] = points;
+  const area = Math.abs((bx - ax) * (cy - ay) - (by - ay) * (cx - ax)) / 3200;
+  assert(
+    (await frame.$eval("#values", (e) => e.textContent)).includes(
+      area.toFixed(2) + " square units",
+    ),
+  );
+  await frame.click("#reset");
+  assert.equal(
+    await frame.$eval("#tri", (e) => e.getAttribute("points")),
+    before,
+  );
+  await page.keyboard.down("Shift");
+  await page.keyboard.press("Tab");
+  await page.keyboard.up("Shift");
+  assert.equal(
+    await frame.evaluate(
+      () =>
+        document.activeElement ===
+        document.querySelector("#handles circle:last-child"),
+    ),
+    true,
+  );
+  await page.keyboard.press("ArrowDown");
+  assert(
+    (await frame.$eval("#values", (e) => e.textContent)).includes(
+      "29.25 square units",
+    ),
+  );
+  assert.deepEqual(network, []);
+  await page.screenshot({
+    path: "verification/generated-triangle-phone.png",
+    fullPage: true,
+  });
+});
+
+test("Anatomy browser kit draws new geometry, separates a cover, selects parts and resets", async (t) => {
+  const { withAnatomyToolkit } = await import("../lib/anatomy.mjs");
+  const html = await withAnatomyToolkit(
+    await fs.readFile(
+      new URL("./fixtures/anatomy-exploded.html", import.meta.url),
+      "utf8",
+    ),
+  );
+  const { page, frame, network } = await setup(t, html, 390);
+  await frame.waitForSelector("#cover-geometry path");
+  assert.equal(
+    await frame.evaluate(() => typeof window.anatomy.solidSvg),
+    "function",
+  );
+  const before = await frame.$eval("#cover-geometry", (e) => e.innerHTML);
+  await frame.$eval("#separation", (e) => {
+    e.value = 40;
+    e.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  assert.notEqual(
+    await frame.$eval("#cover-geometry", (e) => e.innerHTML),
+    before,
+  );
+  await frame.click("#cover");
+  assert.equal(
+    await frame.$eval("#readout", (e) => e.textContent),
+    "Cover: removable top",
+  );
+  await frame.click("#reset");
+  assert.equal(
+    await frame.$eval("#cover-geometry", (e) => e.innerHTML),
+    before,
+  );
+  assert.equal(
+    await frame.$eval("#readout", (e) => e.textContent),
+    "Assembled",
+  );
+  assert.equal(
+    await frame.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+    true,
+  );
+  assert.deepEqual(network, []);
+  await frame.evaluate(() => scrollTo(0, 0));
+  await page.evaluate(() => scrollTo(0, 0));
+  await page.screenshot({
+    path: "verification/anatomy-kit-phone.png",
     fullPage: true,
   });
 });

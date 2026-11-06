@@ -3,11 +3,11 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
-import { spawn } from "node:child_process";
+import { spawn, execFileSync } from "node:child_process";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
 import { saveArtifact } from "../lib/artifacts.mjs";
-import { example } from "../lib/examples.mjs";
+import { example } from "./examples.mjs";
 const bridge = process.env.AETHER_EXTENSION_BRIDGE;
 if (!bridge)
   throw Error("Set AETHER_EXTENSION_BRIDGE to the built extension-bridge.mjs.");
@@ -15,26 +15,31 @@ test("real Aether extension bridge loads, discovers and renders a saved Anatomy 
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "visuals-host-"));
   t.after(() => fs.rm(root, { recursive: true, force: true }));
   const data = path.join(root, "visuals");
-  const artifact = await saveArtifact(await example("anatomy", "engine"), data);
+  const artifact = await saveArtifact(
+    await example("anatomy", "engine"),
+    path.join(data, "anatomy"),
+  );
+  const uiArtifact = await saveArtifact(
+    await example("interactive"),
+    path.join(data, "interactive-ui"),
+  );
   const dir = path.join(root, ".aether/extensions");
   await fs.mkdir(dir, { recursive: true });
-  await fs.cp(
-    fileURLToPath(new URL("../", import.meta.url)),
-    path.join(dir, "aether-visuals"),
-    {
-      recursive: true,
-      filter: (file) =>
-        !["node_modules", "verification", "dist", "tests"].some((part) =>
-          file.split(path.sep).includes(part),
-        ),
-    },
-  );
+  for (const name of ["interactive-ui", "anatomy"])
+    execFileSync("python3", [
+      "-c",
+      "import zipfile,sys;zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])",
+      fileURLToPath(
+        new URL("../dist/aether-" + name + "-0.2.0.zip", import.meta.url),
+      ),
+      path.join(dir, "aether-" + name),
+    ]);
   const child = spawn(process.execPath, [bridge], {
     env: {
       ...process.env,
       HOME: root,
       USERPROFILE: root,
-      AETHER_VISUALS_DATA: data,
+      AETHER_EXTENSIONS_DATA: data,
     },
     stdio: ["pipe", "pipe", "pipe"],
     cwd: root,
@@ -67,7 +72,7 @@ test("real Aether extension bridge loads, discovers and renders a saved Anatomy 
   const loaded = await call("reload_aether_extensions", { context: {} });
   assert.equal(
     loaded.snapshot.extensions.length,
-    1,
+    2,
     JSON.stringify(loaded.errors) + stderr,
   );
   assert.equal(
@@ -75,9 +80,11 @@ test("real Aether extension bridge loads, discovers and renders a saved Anatomy 
     null,
     "no overlay rendered during activation",
   );
-  const extension_id = loaded.snapshot.extensions[0].id,
+  const extension_id = loaded.snapshot.extensions.find((x) =>
+      x.name.includes("anatomy"),
+    ).id,
     menu = loaded.snapshot.composer_menu_items.find(
-      (x) => x.title === "Visuals",
+      (x) => x.title === "Anatomy",
     );
   assert(menu);
   const opened = await call("invoke_aether_extension_action", {
@@ -92,21 +99,38 @@ test("real Aether extension bridge loads, discovers and renders a saved Anatomy 
       : Array.isArray(tree)
         ? tree.flatMap(nodes)
         : [tree, ...nodes(tree.children)];
-  const button = nodes(opened.snapshot.surfaces[0].tree).find(
+  const button = nodes(opened.snapshot.surfaces.find((s) => s.tree)?.tree).find(
     (n) => n.type === "button" && n.label === artifact.title,
   );
   assert(button);
-  const shown = await call("invoke_aether_extension_action", {
-    extension_id,
-    action: button.action,
-    args: button.args,
-    context: {},
+  const shown = await call("get_aether_extensions", {
+    context: {
+      custom_messages: [
+        {
+          id: "inline-test",
+          type: "aether-anatomy",
+          payload: { id: artifact.id },
+        },
+        {
+          id: "ui-test",
+          type: "aether-interactive-ui",
+          payload: { id: uiArtifact.id },
+        },
+      ],
+    },
   });
-  const web = nodes(shown.snapshot.surfaces[0].tree).find(
-    (n) => n.type === "web",
-  );
+  const snapshot = shown.snapshot || shown;
+  assert.equal(snapshot.custom_messages.length, 2);
+  const web = nodes(
+    snapshot.custom_messages.find((m) => m.id === "inline-test").tree,
+  ).find((n) => n.type === "web");
   assert(web.html.includes('sandbox="allow-scripts"'));
   assert(web.html.includes("Raptor"));
+  assert(web.html.includes("window.anatomy=Object.freeze"));
+  const uiWeb = nodes(
+    snapshot.custom_messages.find((m) => m.id === "ui-test").tree,
+  ).find((n) => n.type === "web");
+  assert(!uiWeb.html.includes("window.anatomy=Object.freeze"));
   assert(Buffer.byteLength(JSON.stringify(shown)) < 4 * 1024 * 1024);
-  assert.deepEqual(shown.snapshot.event_names, [], "no automatic prompt hook");
+  assert.deepEqual(snapshot.event_names, [], "no lifecycle or prompt hooks");
 });

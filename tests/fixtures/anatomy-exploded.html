@@ -1,0 +1,17 @@
+<div class="iso" data-theme="light">
+<h2>Isometric assembly</h2><p>Illustrative two-part mechanism. Separate the cover and inspect the parts.</p>
+<svg id="assembly" viewBox="0 0 480 360" role="img" aria-label="Isometric mechanism drawn with the Anatomy toolkit"></svg>
+<label>Separation <input id="separation" type="range" min="0" max="50" value="0"></label>
+<button id="base">Inspect base</button><button id="cover">Inspect cover</button><button id="reset">Reset</button>
+<p id="readout" aria-live="polite">Assembled</p>
+</div>
+<script>
+const k=window.anatomy,plan={x:0,y:0,w:100,d:70,r:8};
+const P=k.fitProjection([...k.boxCorners(plan,0,100)],480,360,{pad:24});
+const slider=document.getElementById('separation'),svg=document.getElementById('assembly');
+function draw(){svg.innerHTML=k.solidSvg(k.slabOf(plan,0,20,P),{tone:'hi'})+'<g id="cover-geometry">'+k.solidSvg(k.slabOf(plan,25+Number(slider.value),10,P),{tone:'mid'})+'</g>';}
+slider.oninput=()=>{draw();document.getElementById('readout').textContent=Number(slider.value)?'Separated':'Assembled';};
+document.getElementById('base').onclick=()=>document.getElementById('readout').textContent='Base: supports the assembly';
+document.getElementById('cover').onclick=()=>document.getElementById('readout').textContent='Cover: removable top';
+document.getElementById('reset').onclick=()=>{slider.value=0;draw();document.getElementById('readout').textContent='Assembled';};draw();
+</script>

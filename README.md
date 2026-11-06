@@ -1,127 +1,151 @@
-# Interactive Visuals for Aether
+# Interactive UI and Anatomy for Aether
 
-Rich interactive answers using Aether's existing agent and model: SVG diagrams,
-local calculators, simulations, Canvas/WebGL, and intricate isometric figures
-using the original **Anatomy** toolkit. One extension, one viewer; optional drawing
-references are loaded only when needed. No CopilotKit server, Python backend,
-second router model, separate credentials or provider SDK is installed.
+Ask a question and get a visual you can use inside the conversation: drag a vertex,
+change a parameter, inspect a mechanism, or explore a simulation. Aether's existing
+Pi agent creates the HTML/SVG/Canvas for your question. Controls calculate locally;
+they do not make another model request each time you touch them.
 
-## Install and try
+## See it in use
 
-Import `aether-visuals-0.1.0.zip` using Aether → Settings → Extensions → Import
-extension. Enable its Pi and Aether parts. It uses existing API v2 features,
-including a composer menu and web node; it does not depend on the Apps extension
-or the pending native web-app-host PR. No native Aether source was changed.
+The examples below show concrete rendering and interaction checks. Each capture is labelled with its actual environment.
 
-Ask Aether:
+<p><img src="docs/screenshots/interactive-triangle.png" width="280" alt="Generated interactive triangle with live base, height and area"><img src="docs/screenshots/anatomy-engine.png" width="280" alt="Intricate isometric rocket-engine reference rendered by the shared viewer"></p>
 
-> Show the Anatomy dial indicator example using visual_artifact.
+Left: an actual model-generated triangle captured in desktop Chromium at a phone
+viewport. Tests drag a vertex, check the calculated area, use the keyboard and reset.
+Right: the upstream Anatomy engine reference in the same browser viewer, testing
+part selection and reset. These are renderer tests, **not screenshots proving the
+new native inline flow**. Physical Android interaction and iOS verification remain
+with the device tester. See [test prompts and pass criteria](docs/TESTING.md).
 
-Then open **Visuals** from the composer's extension menu and choose the figure.
-Its block buttons, drag controls, Play/Pause and Reset work locally. For the more
-intricate rocket engine, ask for action `example`, kind `anatomy`, example `engine`.
-It supports selecting assemblies, taking the engine apart and an optional shader
-plume, with no automatic tour and an explicit Stop and reset button. Or ask:
+## Two independent extensions
 
-> Give me an interactive explanation of net force. Use visual_artifact to show
-> the force lab example, then explain its assumptions.
+| Extension      | Tool             | Composer menu  | Storage                    |
+| -------------- | ---------------- | -------------- | -------------------------- |
+| Interactive UI | `render_ui`      | Interactive UI | `~/.aether/interactive-ui` |
+| Anatomy        | `render_anatomy` | Anatomy        | `~/.aether/anatomy`        |
 
-For a custom figure:
+Install either or both. Each has its own package manifest, tool, message type and saved figures. Shared renderer code lives once in this source repository and is included in each standalone ZIP.
 
-> Explain this mechanism with a detailed interactive isometric drawing. Read
-> visual_artifact's Anatomy guide, use the bundled kit, write a standalone HTML
-> file in this workspace, then show it with visual_artifact.
+## Try it
 
-The tool's `guide` action returns a focused guide and, for Anatomy, the absolute
-kit location. Aether's normal file/build tools do the authoring. The `show` action
-snapshots the file and returns a small artifact ID. It does not send its HTML back
-to the model. Open the library explicitly to see new artifacts; rendering does not
-require keeping the originating agent session running. The last 20 valid artifacts
-are listed; older files remain stored and are not automatically deleted.
+Ask naturally, for example:
 
-## Behavior and boundaries
+> Explain why a triangle's area is half its base times its height. Give me an
+> interactive diagram with a draggable vertex and live measurements.
 
-- **Render:** self-contained HTML, CSS, JavaScript, SVG, Canvas and WebGL. Touch,
-  responsive layout and accessible controls are part of the authoring guide.
-- **Interact:** calculations and animation are local. Controls make no AI requests.
-  Examples start still. Pause/Reset and reduced-motion support are included.
-- **Follow up:** `sendPrompt(text, values)` shows a proposal in the trusted viewer.
-  The user reviews and approves a chat draft, then sends it using Aether. Only the
-  visual ID, text and selected scalar values are included, not the HTML/kit/history.
-- **Persist:** immutable HTML snapshots with title, ID and SHA-256 under the
-  extension runtime's `~/.aether/visuals`. The two Aether bridge processes share
-  those files rather than an in-memory singleton. No local browser replicas.
-- **Isolate:** generated documents use an opaque-origin `sandbox="allow-scripts"`
-  iframe with restrictive CSP. No parent DOM, network resources, forms, workers,
-  nested frames, popups, eval or CDN imports. The parent accepts only bounded
-  resize/follow-up messages from that frame. Host action IDs are random, kept in
-  the parent and never given to the generated document. On Android/iOS the generic
-  native web bridge may also be injected into subframes: no well-known privileged
-  extension actions are registered. The only approval action creates a draft;
-  generated content receives no model/file/installation capability.
+> Show how changing mass and acceleration changes the net force. Let me adjust
+> both values and explain the assumptions.
 
-A follow-up can suggest text but cannot send a message, run tools, or invoke AI.
-Do not treat generated UI as verified science. Models must state assumptions and
-sources, and controls/math must be tested. Complex visuals may cost more to generate
-than plain text; local rendering is free of provider calls.
+> Explain a pump with a detailed isometric drawing. Let me select its parts.
 
-## Context efficiency
+There is no named-demo command to remember. The agent chooses an appropriate
+visual and calls the corresponding rendering tool. Its short `promptSnippet` advertises the tool;
+focused authoring guides load only when requested. Anatomy injects its SVG toolkit only into its own figures; Interactive UI does not ship that module. Each extension’s
+composer menu reopens saved figures in the current chat.
 
-Activation registers one compact tool and a menu; it does not read guides, scan
-visuals, run a model, append a system prompt or install a `before_agent_start` hook.
-Guide/kit/example bodies are read only when explicitly requested. `show` returns
-metadata rather than duplicating code in a tool result. A later follow-up is capped
-at 1,200 characters of text and 1 KiB of up to 16 scalar values. HTML is limited to
-2 MiB. These are byte/character bounds, not model token counts. No live provider
-request was made during validation, so no measured token-usage claim is made.
+## Install
 
-## Current scope
+Import either [release ZIP](https://github.com/josephm1/aether-visuals/releases) through
+**Aether → Settings → Extensions → Import extension**, enabling its Pi and Aether
+parts. Node 22+ is required by the runtime.
 
-This adapts the **capabilities**, not the full OpenIntelligentUI application. It
-uses that project's MIT theme/SVG/form styles and the reviewed-follow-up concept.
-It includes the original MIT Anatomy kit and references, plus dial and detailed rocket-engine examples
-adapted for touch and stopped initial motion. Full Next.js/CopilotKit/AG-UI streaming,
-Jev routing, MCP serving, cloud deployment and telemetry are not included.
+Inline display requires the generic Pi custom-message support in
+[Aether host support's inline-messages branch](https://github.com/josephm1/aether-host-support/tree/feature/inline-extension-messages).
+This Android host change is not yet in upstream Aether. The corresponding iOS
+custom-message path is connected in source; iOS hardware validation remains pending.
+The Apps extension is not required.
 
-Visuals currently open in an extension overlay, not as streaming inline chat
-artifacts. Automatic screenshot/geometry validation, arbitrary external libraries,
-3D scene editing and arbitrary MCP app integration are not implemented. The kit's
-original development scripts may require desktop Chrome; that does not imply they
-work in the mobile runtime. Heavy WebGL/3D needs target-device performance checks.
+## How it works
 
-Android's native extension renderer and iOS's shared renderer both support the
-web node used here. Desktop Chromium and the real Aether extension bridge were
-tested. **This new ZIP has not been installed or tested on Android/iOS hardware**;
-no cross-platform device-parity claim is made. Existing Apps/web-app data is untouched.
+1. Each extension registers its own rendering tool. The model supplies self-contained
+   `content` and a `title`. `action: guide` optionally loads
+   that extension’s focused authoring guide; `action: list` lists saved metadata.
+2. The tool saves an immutable local HTML snapshot. Its model-facing `content`
+   contains a small result; structured `details` preserve metadata.
+3. Pi's standard `sendMessage(..., { triggerTurn: false })` persists a display
+   message containing the artifact ID. The native host renders it inline in its
+   originating chat. No file scan, polling or extra model turn is used.
+4. The viewer reports its content height so chat can scroll through the whole
+   document. The explanation, controls and subsequent conversation stay together.
+5. A visual can propose a follow-up with selected scalar values. You review it,
+   approve a chat draft, and send it yourself.
 
-## Development and verification
+This follows [Pi's extension API](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/extensions.md):
+registered tools, model-facing content, rendering/state details and persisted custom
+messages. [pi-render](https://github.com/ElieMessieCode/pi-render) demonstrates the
+same generated-HTML approach in a desktop browser. Aether supplies the native chat
+renderer instead of starting that project's separate browser server.
 
-Node 22+ and Python 3 for packaging:
+## Context and storage
+
+No drawing kit, saved visual, conversation history or book corpus is loaded at
+activation. The tool has a compact schema and one-line prompt hint. Authoring guides
+and toolkit files are read on demand. HTML is not repeated in tool results or
+follow-ups. A provider-context transform replaces earlier visual tool arguments with
+a short marker, preserving the original persisted branch. Editing can retrieve one
+selected source page at a time with `action: read` (6,000 characters maximum). Pi's display message adds only a title and artifact ID to the session.
+Generating elaborate code still costs model output tokens; local controls cost none.
+
+Snapshots live under its own `~/.aether/interactive-ui` or `~/.aether/anatomy` directory, independently committed with SHA-256.
+The library reads metadata only and lists the latest 20 saved figures. Displaying
+one verifies its content. Older files remain stored. Documents are limited to 2 MiB;
+follow-ups to 1,200 text characters and 1 KiB of up to 16 scalar selected values.
+These are byte/character bounds, not measured model token counts.
+
+## Rendering and isolation
+
+The viewer supports self-contained HTML, CSS, JavaScript, SVG, Canvas and WebGL.
+The optional MIT Anatomy SVG geometry module supports intricate isometric figures. Generation
+must provide touch controls, readable labels, keyboard access, reset/pause controls
+where appropriate, and reduced-motion support.
+
+Generated content runs in an opaque-origin `sandbox="allow-scripts"` iframe with
+CSP restrictions on external resources, nested frames, forms, workers, popups,
+network requests and eval. It cannot read the parent DOM. The parent accepts
+bounded size and follow-up messages only. Native action IDs are random and remain
+outside generated documents. Android/iOS may inject their generic bridge into
+subframes, so sandboxing alone is not treated as hiding that bridge.
+
+The approved follow-up action creates a draft; it cannot automatically send a
+message, invoke the model, read files or install anything. Diagrams and calculations
+need validation; generated scientific content is not verified guidance.
+
+## Scope and validation
+
+This implements interactive-answer capabilities using Aether's selected model and
+authentication. It includes a small MIT OpenIntelligentUI style subset, not its
+Next.js/CopilotKit backend. No router model, extra provider SDK, separate credentials,
+telemetry, cloud service or background server is installed.
+
+Local tests cover document integrity and content bounds, Pi message shape, inline
+rendering, content-height reporting, real calculator/gauge/engine controls, keyboard
+and phone-width interaction, isolation and reviewed follow-ups. Native Android
+custom-message tests and builds are separate from browser tests. Device captures
+state the workflow actually exercised; they do not establish iOS parity, scientific
+correctness or complete WebGL performance coverage.
+
+## Development
 
 ```sh
 npm ci --ignore-scripts
 npm test
 CHROME_PATH=/path/to/chromium npm run test:browser
-AETHER_EXTENSION_BRIDGE=/path/to/Aether/pi-bridge/dist/extension-bridge.mjs npm run test:host
 npm run package
+AETHER_EXTENSION_BRIDGE=/path/to/Aether/pi-bridge/dist/extension-bridge.mjs npm run test:host
 ```
 
-Runtime uses Node built-ins only; Puppeteer is a development-only browser test
-library. Packaging allowlists the runtime files and excludes dependencies, tests,
-verification captures, generated snapshots and credentials. Tests cover actual
-control results, keyboard/touch behavior, viewport width, isolation, reviewed
-follow-up gating, source bounds/integrity, and native extension loading/rendering.
+Runtime uses Node built-ins only. Puppeteer is a development dependency. Packaging
+allowlists runtime files and excludes dependencies, tests, screenshots, generated
+snapshots and credentials. Force, dial and engine examples live only under tests/fixtures;
+they are not special cases exposed to the model. Only the browser-safe SVG module is shipped; unused desktop build, publishing and 3D tooling are excluded.
 
 ## Licences
 
-Original adapter code: MIT. Upstream attribution, licences and pinned revisions:
+Original adapters and shared renderer: MIT. Pinned upstream revisions and original licences are in:
 
-- [wheresryan22/anatomy](https://github.com/wheresryan22/anatomy), MIT:
-  `vendor/anatomy/LICENSE` and `UPSTREAM.json`. Unmodified toolkit and reference
-  files retain their upstream wording. Touch adaptation is in `lib/examples.mjs`.
-- [CopilotKit/OpenIntelligentUI](https://github.com/CopilotKit/OpenIntelligentUI),
-  MIT: `vendor/open-intelligent-ui/LICENSE` and `UPSTREAM.json`. The runtime CSS
-  subset is taken from `packages/design-system/src/index.ts`.
-
-The upstream guides are source material; this extension does not auto-publish
-figures, send telemetry or execute upstream installation/publishing scripts.
+- [Anatomy](https://github.com/wheresryan22/anatomy): `vendor/anatomy/UPSTREAM.json`
+  and `LICENSE`. The SVG module retains upstream code; desktop publishing/build scripts are excluded.
+- [OpenIntelligentUI](https://github.com/CopilotKit/OpenIntelligentUI):
+  `vendor/open-intelligent-ui/UPSTREAM.json` and `LICENSE`. The CSS subset comes
+  from `packages/design-system/src/index.ts`.

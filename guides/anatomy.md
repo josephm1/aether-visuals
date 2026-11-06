@@ -1,31 +1,37 @@
-# Anatomy figures in Aether
+# Anatomy drawings in Aether
 
-Use the original wheresryan22/anatomy toolkit for intricate isometric explanatory
-figures. It is a drawing skill, not a human anatomy atlas. Its MIT licence and
-pinned upstream revision are in vendor/anatomy. Read only the relevant reference,
-not the whole kit and all examples. Nothing is injected into unrelated chat.
+Use render_anatomy for intricate isometric explanatory SVG. This uses the original
+MIT Anatomy geometry toolkit, not a human anatomy atlas. Aether injects the pinned
+browser-safe kit and its stylesheet before your content. Do not copy kit source,
+import modules, write files or run build scripts in another runtime.
 
-First establish the concept, source-backed numbers and physical mechanism. Then
-build a small model that drives both geometry and readouts. Do not invent facts to
-justify an attractive diagram. Use the framework-free SVG route first.
+Call render_anatomy with title and your complete HTML in content.
+Your script can use `window.anatomy` immediately. Wrap the figure in
+`<div class="iso" data-theme="light">`. Prefer SVG with an explicit responsive
+viewBox and accessible buttons. No external resources or native bridge calls.
 
-The bundled working reference is vendor/anatomy/examples/dial-indicator/build.mjs.
-Run it with Node and --light for a standalone HTML figure. The extension's action
-example, kind anatomy shows a touch-adapted copy with pause and block buttons.
+Key functions (`k = window.anatomy`):
 
-Read vendor/anatomy/references/kit.md for geometry, craft.md for construction and
-motion.md for interaction. Optional webgl.md and 3d.md are loaded only for that task.
-The original SKILL.md is available if a complete specialist workflow is needed.
-Use existing read/bash tools with the absolute kit path returned by this tool.
-Copy a build script to the workspace and update its kit imports to that path;
-do not overwrite packaged examples. Build the HTML there, then call visual_artifact
-with action show, kind anatomy, title and the file path.
+- `fitProjection(points3d, width, height, {pad:24,azimuth:45,elevation:30})`
+- `iso([x,y,z], P)` projects a world point to SVG coordinates; z points upward.
+- `boxCorners({x,y,w,d,r}, z0, z1)` gives fitting extremes.
+- `slabOf({x,y,w,d,r}, z, height, P, steps=8, bevel=0)` gives rounded-box paths.
+- `cylinder(cx,cy,r,z,height,P,steps=32,bevel=0)` gives round solid paths.
+- `solidSvg(paths,{tone:'hi'})` returns styled SVG markup.
+- `lineSvg(path,{tone:'lo',dashed:false})`, `segment(point3d,point3d,P)`.
+- `depthOf(point3d,P)` sorts solids far-to-near; painter order matters.
+- `figureSvg({width,height,label,body})` wraps SVG markup accessibly.
 
-Adapt interactions for touch: pointerdown/move/up and accessible buttons/sliders,
-44px targets, 320px layout, keyboard support, stopped initial animation and Pause/
-Reset. Honor reduced motion and provide a useful still SVG if WebGL is unavailable.
-Use only inline scripts, styles and data images: no remote fonts/scripts, network,
-embedded pages or native bridge. Headless Chrome validation runs on a development
-computer; do not assume desktop Chrome scripts run on Android/iOS. Verify in the
-actual target WebView as a separate stage. The existing Aether extension web node
-renders the result on both platform paths; iOS device validation remains required.
+For example, compute a projection from a part's boxCorners, then set an SVG
+container's innerHTML to `k.solidSvg(k.slabOf(plan,0,20,P),{tone:'hi'})`.
+Use the same geometric model for projected parts, labels and measurements.
+
+For an exploded view, store each part's world-space position, height and separation
+vector, then recompute its paths from one local slider value. Provide named part
+buttons and a text explanation. Keep source facts separate from illustrative
+geometry; label a schematic as schematic. Do not invent precision or internal parts.
+
+Start still. Use pointer events and buttons, 44px controls, readable labels, a 320px
+layout, keyboard access, Reset and Pause where relevant, and reduced-motion support.
+Keep controls in the document flow so chat can expose them by scrolling. Test
+selection, separation, reset and actual SVG geometry, not just button labels.
