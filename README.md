@@ -55,8 +55,8 @@ Import either [release ZIP](https://github.com/josephm1/aether-visuals/releases)
 parts. Node 22+ is required by the runtime.
 
 Inline display requires the generic Pi custom-message support in
-[Aether host support's inline-messages branch](https://github.com/josephm1/aether-host-support/tree/feature/inline-extension-messages).
-This Android host change is not yet in upstream Aether. The corresponding iOS
+[Aether PR #121](https://github.com/Zhou-Shilin/Aether/pull/121).
+The native change is submitted for review and has not been merged. The corresponding iOS
 custom-message path is connected in source; iOS hardware validation remains pending.
 The Apps extension is not required.
 
