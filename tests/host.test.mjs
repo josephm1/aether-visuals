@@ -11,9 +11,10 @@ import { example } from "./examples.mjs";
 const bridge = process.env.AETHER_EXTENSION_BRIDGE;
 if (!bridge)
   throw Error("Set AETHER_EXTENSION_BRIDGE to the built extension-bridge.mjs.");
-test("real Aether extension bridge loads, discovers and renders a saved Anatomy artifact", async (t) => {
+test("real Aether host loads both standalone packages and renders their distinct messages", async (t) => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "visuals-host-"));
   t.after(() => fs.rm(root, { recursive: true, force: true }));
+  const { version } = JSON.parse(await fs.readFile(new URL("../package.json", import.meta.url), "utf8"));
   const data = path.join(root, "visuals");
   const artifact = await saveArtifact(
     await example("anatomy", "engine"),
@@ -30,7 +31,7 @@ test("real Aether extension bridge loads, discovers and renders a saved Anatomy 
       "-c",
       "import zipfile,sys;zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])",
       fileURLToPath(
-        new URL("../dist/aether-" + name + "-0.2.0.zip", import.meta.url),
+        new URL("../dist/aether-" + name + "-" + version + ".zip", import.meta.url),
       ),
       path.join(dir, "aether-" + name),
     ]);
@@ -119,7 +120,7 @@ test("real Aether extension bridge loads, discovers and renders a saved Anatomy 
       ],
     },
   });
-  const snapshot = shown.snapshot || shown;
+  const snapshot = shown.snapshot;
   assert.equal(snapshot.custom_messages.length, 2);
   const web = nodes(
     snapshot.custom_messages.find((m) => m.id === "inline-test").tree,

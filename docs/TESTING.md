@@ -1,6 +1,6 @@
 # Two independent extension tests
 
-Import either or both 0.2.0 packages and enable their Pi and Aether parts. The host
+Import either or both packages and enable their Pi and Aether parts. The host
 must include the generic Pi custom-message change on the linked host-support branch.
 Disable/remove the old combined beta if it is installed; these are independent replacements, with no automatic migration. Start a fresh chat for each test. No old sessions, data migrations or named demos
 are needed. Physical interaction is performed by the device tester.

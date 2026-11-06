@@ -18,7 +18,6 @@ import { example } from "./examples.mjs";
 import {
   activateAgent as activatePi,
   executeVisual,
-  toolDefinition,
   createToolDefinition,
   compactVisualContext,
 } from "../lib/agent.mjs";
@@ -53,21 +52,17 @@ test("HTML documents are bounded before being saved", async (t) => {
     /limit/,
   );
   await assert.rejects(
-    executeVisual({ title: "Missing" }, { cwd: root }, root),
+    executeVisual({ title: "Missing" }, root, INTERACTIVE_UI),
     /content/,
   );
 });
 
 test("tool show returns small metadata and no HTML or provider access", async (t) => {
   const root = await temporary(t);
-  await fs.writeFile(
-    path.join(root, "figure.html"),
-    "<h1>Unique body secret</h1>",
-  );
   const a = await executeVisual(
     { action: "render", content: "<h1>Unique body secret</h1>", title: "Test" },
-    { cwd: root },
     path.join(root, "store"),
+    INTERACTIVE_UI,
   );
   assert(!JSON.stringify(a).includes("Unique body secret"));
   assert(JSON.stringify(a).length < 500);
@@ -79,16 +74,15 @@ test("guides are opt-in; activating does not add chat context or call a provider
   activatePi({
     registerTool: (t) => tools.push(t),
     registerCommand() {},
-    on() {},
     on: (...args) => hooks.push(args),
-  });
+  }, INTERACTIVE_UI);
   assert.equal(tools.length, 1);
   assert.deepEqual(
     hooks.map((h) => h[0]),
     ["context"],
   );
   assert.equal(tools[0].name, "render_ui");
-  assert(JSON.stringify(toolDefinition).length < 1200);
+  assert(JSON.stringify(createToolDefinition(INTERACTIVE_UI)).length < 1200);
 });
 test("examples include real local model and accessible Anatomy controls", async () => {
   const a = await example("anatomy"),
@@ -139,7 +133,7 @@ test("inline rendering resizes locally and only drafts followups", async (t) => 
     calls = [],
     appended = [];
   const a = await saveArtifact(
-    { html: "<p>test</p>", title: "Test", sessionId: "chat-a" },
+    { html: "<p>test</p>", title: "Test" },
     root,
   );
   let surface, renderer;
@@ -162,7 +156,7 @@ test("inline rendering resizes locally and only drafts followups", async (t) => 
     host: { invoke: async (...args) => calls.push(args) },
     invalidate() {},
   };
-  const { actions: n } = await activateAether(api, { root });
+  const { actions: n } = await activateAether(api, { root, config: INTERACTIVE_UI });
   assert.equal(surface.render(), null);
   assert.deepEqual(calls, []);
   assert.equal(events.size, 0);
@@ -198,7 +192,7 @@ test("Pi renderer emits a standard persisted custom message and compact details"
     registerCommand() {},
     on() {},
     sendMessage: (...args) => sent.push(args),
-  });
+  }, INTERACTIVE_UI);
   const result = await tool.execute(
     "call",
     { title: "Custom diagram", content: "<h1>Unique source body</h1>" },
@@ -231,14 +225,13 @@ test("Anatomy assets load only for that artifact and stay outside model results"
       title: "New mechanism",
       content: '<div class="iso" data-theme="light"><svg></svg></div>',
     },
-    { cwd: root },
     root,
     ANATOMY,
   );
   const saved = await readArtifact(result.id, root);
   assert(!saved.html.includes("window.anatomy=Object.freeze"));
   assert(!JSON.stringify(result).includes("solidSvg"));
-  assert(!toolDefinition.parameters.properties.file);
+  assert(!createToolDefinition(INTERACTIVE_UI).parameters.properties.file);
 });
 
 test("independent extensions register distinct tools, message types and storage", async (t) => {
@@ -320,13 +313,13 @@ test("provider context omits visual source without mutating the persisted branch
     { title: "Source", html: "a".repeat(7000) },
     root,
   );
-  const first = await executeVisual({ action: "read", id: saved.id }, {}, root);
+  const first = await executeVisual({ action: "read", id: saved.id }, root, INTERACTIVE_UI);
   assert.equal(first.content.length, 6000);
   assert.equal(first.nextOffset, 6000);
   const last = await executeVisual(
     { action: "read", id: saved.id, offset: first.nextOffset },
-    {},
     root,
+    INTERACTIVE_UI,
   );
   assert.equal(last.content.length, 1000);
   assert.equal(last.nextOffset, null);

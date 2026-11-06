@@ -22,7 +22,6 @@ async function setup(t, html, width = 390, touch = true, resizeAction = null) {
     hasTouch: touch,
     deviceScaleFactor: 1,
   });
-  await page.evaluateOnNewDocument(() => {});
   const network = [];
   page.on("response", (r) => {
     if (/^https?:/.test(r.url())) network.push(r.url());
